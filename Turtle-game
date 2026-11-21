@@ -1,0 +1,228 @@
+import turtle as t
+import random
+
+# --- 화면 초기 설정 ---
+screen = t.Screen()
+screen.setup(600, 600)
+screen.bgcolor("#0B1026")  # 깊은 우주 배경색
+screen.title("Starlight Turtle - 우주 운석 피하기")
+screen.tracer(0)  # 화면 깜빡임 방지를 위한 수동 업데이트
+
+# --- 게임 상태 변수 ---
+playing = False
+score = 0
+high_score = 0
+lives = 3
+level = 1
+
+# --- 배경 별 그리기 (최초 1회) ---
+bg_pen = t.Turtle()
+bg_pen.hideturtle()
+bg_pen.speed(0)
+bg_pen.penup()
+bg_pen.color("white")
+for _ in range(45):
+    bg_pen.goto(random.randint(-285, 285), random.randint(-285, 285))
+    bg_pen.dot(random.choice([2, 3]))
+
+# --- HUD(점수/목숨/레벨) 표시용 터틀 ---
+hud_pen = t.Turtle()
+hud_pen.hideturtle()
+hud_pen.penup()
+hud_pen.color("white")
+
+# --- 안내 메시지(시작/게임오버) 표시용 터틀 ---
+msg_pen = t.Turtle()
+msg_pen.hideturtle()
+msg_pen.penup()
+msg_pen.color("white")
+
+# --- 주인공 우주 거북이 ---
+player = t.Turtle()
+player.shape("turtle")
+player.color("#4DEEEA")
+player.shapesize(1.3, 1.3)
+player.penup()
+player.speed(0)
+player.goto(0, -200)
+player.setheading(90)
+
+# --- 황금 별 (점수 아이템) ---
+star = t.Turtle()
+star.shape("circle")
+star.color("#FFD700")
+star.shapesize(0.9, 0.9)
+star.penup()
+star.speed(0)
+
+# --- 운석 리스트 (장애물 5개) ---
+meteors = []
+for _ in range(5):
+    m = t.Turtle()
+    m.shape("circle")
+    m.color("#FF5E5B")
+    m.shapesize(1.1, 1.1)
+    m.penup()
+    m.speed(0)
+    m.fall_speed = 4
+    meteors.append(m)
+
+
+def reset_star():
+    """황금 별을 화면 내 무작위 위치로 이동"""
+    star.goto(random.randint(-250, 250), random.randint(-220, 180))
+
+
+def reset_meteor(m, initial=False):
+    """운석을 화면 상단 바깥쪽 무작위 위치로 초기화"""
+    x = random.randint(-270, 270)
+    y = random.randint(300, 620) if initial else random.randint(300, 400)
+    m.goto(x, y)
+    # 레벨이 올라갈수록 운석 낙하 속도 증가
+    base_speed = 4 + (level - 1) * 1.2
+    m.fall_speed = random.uniform(base_speed, base_speed + 3.0)
+
+
+def update_hud():
+    """상단 점수, 최고 기록, 레벨, 목숨 갱신"""
+    hud_pen.clear()
+    hud_pen.goto(-280, 265)
+    hearts = "♥ " * lives
+    hud_pen.write(
+        f"SCORE: {score}   BEST: {high_score}   LV.{level}   LIFE: {hearts}",
+        align="left",
+        font=("Malgun Gothic", 12, "bold"),
+    )
+
+
+def show_message(title, subtitle):
+    """화면 중앙에 제목과 안내 문구 출력"""
+    msg_pen.clear()
+    msg_pen.goto(0, 40)
+    msg_pen.color("#FFD700")
+    msg_pen.write(title, align="center", font=("Malgun Gothic", 26, "bold"))
+    msg_pen.goto(0, -20)
+    msg_pen.color("white")
+    msg_pen.write(subtitle, align="center", font=("Malgun Gothic", 13, "normal"))
+
+
+# --- 방향키 이동 함수 (화면 경계 제한 포함) ---
+PLAYER_STEP = 22
+
+
+def move_left():
+    if not playing:
+        return
+    player.setheading(180)
+    new_x = max(-270, player.xcor() - PLAYER_STEP)
+    player.setx(new_x)
+
+
+def move_right():
+    if not playing:
+        return
+    player.setheading(0)
+    new_x = min(270, player.xcor() + PLAYER_STEP)
+    player.setx(new_x)
+
+
+def move_up():
+    if not playing:
+        return
+    player.setheading(90)
+    new_y = min(230, player.ycor() + PLAYER_STEP)
+    player.sety(new_y)
+
+
+def move_down():
+    if not playing:
+        return
+    player.setheading(270)
+    new_y = max(-270, player.ycor() - PLAYER_STEP)
+    player.sety(new_y)
+
+
+def start_game():
+    """SpaceBar를 눌러 게임 시작 및 재시작"""
+    global playing, score, lives, level
+    if not playing:
+        playing = True
+        score = 0
+        lives = 3
+        level = 1
+        msg_pen.clear()
+        player.goto(0, -200)
+        player.setheading(90)
+        reset_star()
+        for m in meteors:
+            reset_meteor(m, initial=True)
+        update_hud()
+        play()
+
+
+def play():
+    """메인 게임 루프 (0.03초마다 반복 실행)"""
+    global playing, score, high_score, lives, level
+
+    if not playing:
+        return
+
+    # 1. 운석 낙하 및 충돌 판정
+    for m in meteors:
+        m.sety(m.ycor() - m.fall_speed)
+
+        # 운석이 화면 아래로 벗어나면 생존 점수(+1) 추가 후 재생성
+        if m.ycor() < -310:
+            score += 1
+            reset_meteor(m)
+
+        # 주인공과 운석 충돌 판정
+        if player.distance(m) < 22:
+            lives -= 1
+            reset_meteor(m)
+            if lives <= 0:
+                playing = False
+                if score > high_score:
+                    high_score = score
+                update_hud()
+                show_message(
+                    "GAME OVER",
+                    f"최종 점수: {score}점 (최고 기록: {high_score}점)\n\n다시 시작하려면 [Space] 키를 누르세요",
+                )
+                screen.update()
+                return
+
+    # 2. 황금 별 획득 판정
+    if player.distance(star) < 24:
+        score += 10
+        reset_star()
+
+    # 3. 점수에 따른 레벨 상승 (50점마다 레벨업)
+    level = score // 50 + 1
+    if score > high_score:
+        high_score = score
+
+    update_hud()
+    screen.update()
+    screen.ontimer(play, 30)
+
+
+# --- 키보드 이벤트 연결 ---
+screen.listen()
+screen.onkeypress(move_left, "Left")
+screen.onkeypress(move_right, "Right")
+screen.onkeypress(move_up, "Up")
+screen.onkeypress(move_down, "Down")
+screen.onkeypress(start_game, "space")
+
+# --- 초기 대기 화면 표시 ---
+reset_star()
+for m in meteors:
+    reset_meteor(m, initial=True)
+update_hud()
+show_message(
+    "STARLIGHT TURTLE",
+    "방향키로 운석을 피하고 황금 별(+10점)을 모으세요!\n\n시작하려면 [Space] 키를 누르세요",
+)
+screen.update()
+screen.mainloop()
