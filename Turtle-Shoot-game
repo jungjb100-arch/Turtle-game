@@ -3,7 +3,7 @@ import random
 
 # --- 화면 초기 설정 ---
 screen = t.Screen()
-screen.setup(600, 600)
+screen.setup(1920, 1200)
 screen.bgcolor("#0B1026")  # 깊은 우주 배경색
 screen.title("Starlight Turtle - 우주 운석 피하기")
 screen.tracer(0)  # 화면 깜빡임 방지를 위한 수동 업데이트
